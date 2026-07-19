@@ -22,3 +22,38 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+
+
+.idea/
+
+*.iml
+
+logs/
+
+*.log
+
+node_modules/
+
+# Java
+target/
+*.class
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+
+# Maven Wrapper JAR (keep wrapper files)
+!.mvn/wrapper/maven-wrapper.jar
