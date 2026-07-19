@@ -29,6 +29,8 @@ import com.ajith.codejudge.submission.repository.SubmissionRepository;
 import com.ajith.codejudge.submission.repository.SubmissionTestCaseRepository;
 import com.ajith.codejudge.submission.service.interfaces.SubmissionService;
 import com.ajith.codejudge.exam.service.interfaces.LeaderboardService;
+import com.ajith.codejudge.user.entity.User;
+import com.ajith.codejudge.user.repository.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -55,7 +57,6 @@ import java.util.stream.Collectors;
 public class SubmissionServiceImpl implements SubmissionService {
 
     private final SubmissionRepository submissionRepository;
-    private final SubmissionTestCaseRepository submissionTestCaseRepository;
     private final QuestionRepository questionRepository;
     private final LanguageRepository languageRepository;
     private final ExamCandidateRepository examCandidateRepository;
@@ -64,6 +65,7 @@ public class SubmissionServiceImpl implements SubmissionService {
     private final SubmissionMapper submissionMapper;
     private final DockerSandboxExecutor dockerSandboxExecutor;
     private final LeaderboardService leaderboardService;
+    private final UserRepository userRepository;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Override
@@ -84,8 +86,12 @@ public class SubmissionServiceImpl implements SubmissionService {
             }
         }
 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
         // Initialize submission record as RUNNING
         Submission submission = Submission.builder()
+                .user(user)
                 .candidate(candidate)
                 .question(question)
                 .language(language)
@@ -364,5 +370,13 @@ public class SubmissionServiceImpl implements SubmissionService {
         }
 
         return response;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SubmissionResponse> getSubmissionsByUser(Long userId) {
+        return submissionRepository.findByUserId(userId).stream()
+                .map(this::toSubmissionResponseSecure)
+                .collect(Collectors.toList());
     }
 }

@@ -1,20 +1,7 @@
 package com.ajith.codejudge.question.controller;
 
-import com.ajith.codejudge.common.pagination.PageRequestDto;
-import com.ajith.codejudge.common.pagination.PageResponseDto;
-import com.ajith.codejudge.common.response.ApiResponse;
-import com.ajith.codejudge.question.dto.request.CodingQuestionRequest;
-import com.ajith.codejudge.question.dto.request.LanguageRequest;
-import com.ajith.codejudge.question.dto.request.McqQuestionRequest;
-import com.ajith.codejudge.question.dto.response.CodingQuestionResponse;
-import com.ajith.codejudge.question.dto.response.LanguageResponse;
-import com.ajith.codejudge.question.dto.response.McqQuestionResponse;
-import com.ajith.codejudge.question.dto.response.QuestionResponse;
-import com.ajith.codejudge.question.service.interfaces.QuestionService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,7 +14,22 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import com.ajith.codejudge.common.pagination.PageRequestDto;
+import com.ajith.codejudge.common.pagination.PageResponseDto;
+import com.ajith.codejudge.common.response.ApiResponse;
+import com.ajith.codejudge.question.dto.request.CodingQuestionRequest;
+import com.ajith.codejudge.question.dto.request.LanguageRequest;
+import com.ajith.codejudge.question.dto.request.McqQuestionRequest;
+import com.ajith.codejudge.question.dto.response.CodingQuestionResponse;
+import com.ajith.codejudge.question.dto.response.LanguageResponse;
+import com.ajith.codejudge.question.dto.response.McqQuestionResponse;
+import com.ajith.codejudge.question.dto.response.QuestionResponse;
+import com.ajith.codejudge.question.service.interfaces.QuestionService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/v1/questions")
@@ -72,16 +74,16 @@ public class QuestionController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'EXAM_SETTER')")
-    @Operation(summary = "Retrieve a question by ID (Admins/Exam Setters only)")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'ADMIN', 'EXAM_SETTER')")
+    @Operation(summary = "Retrieve a question by ID (Authenticated users)")
     public ResponseEntity<ApiResponse<QuestionResponse>> getQuestionById(@PathVariable Long id) {
         QuestionResponse response = questionService.getQuestionById(id);
         return ResponseEntity.ok(ApiResponse.success(response, "Question retrieved successfully"));
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'EXAM_SETTER')")
-    @Operation(summary = "Retrieve a paginated list of all questions (Admins/Exam Setters only)")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'ADMIN', 'EXAM_SETTER')")
+    @Operation(summary = "Retrieve a paginated list of all questions (Authenticated users)")
     public ResponseEntity<ApiResponse<PageResponseDto<QuestionResponse>>> getAllQuestions(@Valid PageRequestDto pageRequest) {
         PageResponseDto<QuestionResponse> response = questionService.getAllQuestions(pageRequest);
         return ResponseEntity.ok(ApiResponse.success(response, "Questions list retrieved successfully"));

@@ -14,4 +14,6 @@ public interface SubmissionService {
     List<SubmissionResponse> getSubmissionsByCandidate(Long candidateId);
 
     List<SubmissionResponse> getSubmissionsByQuestion(Long questionId);
+
+    List<SubmissionResponse> getSubmissionsByUser(Long userId);
 }

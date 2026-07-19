@@ -28,6 +28,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -119,17 +121,59 @@ public class QuestionServiceImpl implements QuestionService {
     public QuestionResponse getQuestionById(Long id) {
         Question question = questionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Question not found with id: " + id));
-        return questionMapper.toResponse(question);
+        return cleanseQuestionResponse(questionMapper.toResponse(question));
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponseDto<QuestionResponse> getAllQuestions(PageRequestDto pageRequest) {
         Pageable pageable = pageRequest.toPageable();
-        Page<Question> questions = questionRepository.findAll(pageable);
         
-        Page<QuestionResponse> responsePage = questions.map(questionMapper::toResponse);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isCandidate = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CANDIDATE"));
+        boolean isAdmin = auth != null && auth.getAuthorities().stream().anyMatch(a ->
+                a.getAuthority().equals("ROLE_ADMIN") ||
+                a.getAuthority().equals("ROLE_SUPER_ADMIN") ||
+                a.getAuthority().equals("ROLE_EXAM_SETTER")
+        );
+
+        Page<Question> questions;
+        if (isCandidate && !isAdmin) {
+            // Retrieve only public practice questions (exclude questions mapped to active/upcoming exams)
+            questions = questionRepository.findPracticeQuestions(java.time.LocalDateTime.now(), pageable);
+        } else {
+            questions = questionRepository.findAll(pageable);
+        }
+        
+        Page<QuestionResponse> responsePage = questions.map(q -> cleanseQuestionResponse(questionMapper.toResponse(q)));
         return PageResponseDto.fromPage(responsePage);
+    }
+
+    private QuestionResponse cleanseQuestionResponse(QuestionResponse response) {
+        if (response == null) return null;
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isCandidate = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CANDIDATE"));
+        boolean isAdmin = auth != null && auth.getAuthorities().stream().anyMatch(a ->
+                a.getAuthority().equals("ROLE_ADMIN") ||
+                a.getAuthority().equals("ROLE_SUPER_ADMIN") ||
+                a.getAuthority().equals("ROLE_EXAM_SETTER")
+        );
+
+        if (isCandidate && !isAdmin) {
+            if (response instanceof McqQuestionResponse mcqResponse) {
+                if (mcqResponse.getOptions() != null) {
+                    mcqResponse.getOptions().forEach(opt -> opt.setCorrect(false));
+                }
+            } else if (response instanceof CodingQuestionResponse codingResponse) {
+                if (codingResponse.getTestCases() != null) {
+                    codingResponse.getTestCases().removeIf(com.ajith.codejudge.question.dto.response.TestCaseResponse::isHidden);
+                }
+            }
+        }
+        return response;
     }
 
     @Override

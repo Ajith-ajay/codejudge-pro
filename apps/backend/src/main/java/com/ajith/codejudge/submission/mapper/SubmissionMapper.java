@@ -24,6 +24,7 @@ public interface SubmissionMapper {
     @Mapping(target = "score", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "submissionTestCases", ignore = true)
+    @Mapping(target = "user", ignore = true)
     Submission toEntity(SubmissionRequest request);
 
     @Mapping(target = "candidateId", source = "candidate.id")

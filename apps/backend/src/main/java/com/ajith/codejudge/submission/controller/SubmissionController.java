@@ -42,6 +42,16 @@ public class SubmissionController {
                 .body(ApiResponse.success(response, "Solution submitted and graded successfully"));
     }
 
+    @GetMapping("/my-submissions")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'EXAM_SETTER', 'ADMIN', 'SUPER_ADMIN')")
+    @Operation(summary = "Get list of all submissions for the logged-in user")
+    public ResponseEntity<ApiResponse<List<SubmissionResponse>>> getMySubmissions(
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        List<SubmissionResponse> response = submissionService.getSubmissionsByUser(userDetails.getId());
+        return ResponseEntity.ok(ApiResponse.success(response, "My submissions retrieved successfully"));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('CANDIDATE', 'EXAM_SETTER', 'ADMIN', 'SUPER_ADMIN')")
     @Operation(summary = "Retrieve grading details for a specific submission (Security rules enforced)")

@@ -39,6 +39,8 @@ import com.ajith.codejudge.submission.mapper.SubmissionMapper;
 import com.ajith.codejudge.submission.repository.SubmissionRepository;
 import com.ajith.codejudge.submission.repository.SubmissionTestCaseRepository;
 import com.ajith.codejudge.submission.service.impl.SubmissionServiceImpl;
+import com.ajith.codejudge.user.entity.User;
+import com.ajith.codejudge.user.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class SubmissionServiceTest {
@@ -64,9 +66,13 @@ class SubmissionServiceTest {
     @Mock
     private DockerSandboxExecutor dockerSandboxExecutor;
 
+    @Mock
+    private UserRepository userRepository;
+
     @InjectMocks
     private SubmissionServiceImpl submissionService;
 
+    private User mockUser;
     private Language pythonLanguage;
     private McqQuestion mcqQuestion;
     private CodingQuestion codingQuestion;
@@ -74,6 +80,12 @@ class SubmissionServiceTest {
 
     @BeforeEach
     void setUp() {
+        mockUser = User.builder()
+                .id(1L)
+                .username("testuser")
+                .email("test@example.com")
+                .build();
+
         pythonLanguage = Language.builder()
                 .id(1L)
                 .name("Python")
@@ -128,6 +140,7 @@ class SubmissionServiceTest {
                 .sourceCode("A")
                 .build();
 
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
         when(questionRepository.findById(10L)).thenReturn(Optional.of(mcqQuestion));
         when(languageRepository.findById(1L)).thenReturn(Optional.of(pythonLanguage));
         when(submissionRepository.save(any(Submission.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -150,6 +163,7 @@ class SubmissionServiceTest {
                 .sourceCode("B")
                 .build();
 
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
         when(questionRepository.findById(10L)).thenReturn(Optional.of(mcqQuestion));
         when(languageRepository.findById(1L)).thenReturn(Optional.of(pythonLanguage));
         when(submissionRepository.save(any(Submission.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -172,6 +186,7 @@ class SubmissionServiceTest {
                 .sourceCode("print(int(input())*2)")
                 .build();
 
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
         when(questionRepository.findById(20L)).thenReturn(Optional.of(codingQuestion));
         when(languageRepository.findById(1L)).thenReturn(Optional.of(pythonLanguage));
         when(testCaseRepository.findByCodingQuestionId(20L)).thenReturn(Collections.singletonList(testCase));
@@ -203,6 +218,7 @@ class SubmissionServiceTest {
                 .sourceCode("while True: pass")
                 .build();
 
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
         when(questionRepository.findById(20L)).thenReturn(Optional.of(codingQuestion));
         when(languageRepository.findById(1L)).thenReturn(Optional.of(pythonLanguage));
         when(testCaseRepository.findByCodingQuestionId(20L)).thenReturn(Collections.singletonList(testCase));
