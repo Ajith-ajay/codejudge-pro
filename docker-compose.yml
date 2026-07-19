@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: codejudge-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - codejudge-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: codejudge-redis
+    command:
+      - redis-server
+      - --save
+      - "60"
+      - "1"
+      - --loglevel
+      - warning
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - codejudge-net
+
+  mailpit:
+    image: axllent/mailpit:v1.23
+    container_name: codejudge-mailpit
+    ports:
+      - "${MAIL_PORT}:1025"
+      - "${MAILPIT_UI_PORT}:8025"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8025 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - codejudge-net
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  codejudge-net:
+    driver: bridge
