@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Repository
 public interface SubmissionRepository extends JpaRepository<Submission, Long> {
@@ -16,6 +17,9 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
     List<Submission> findByCandidateIdAndQuestionId(Long candidateId, Long questionId);
 
     List<Submission> findByUserId(Long userId);
+
+    List<Submission> findByUserIdAndCandidateIsNullAndQuestionIdInAndCreatedAtAfter(
+            Long userId, List<Long> questionIds, LocalDateTime createdAt);
 
     @org.springframework.data.jpa.repository.Query("SELECT COUNT(DISTINCT s.question.id) FROM Submission s WHERE s.user.id = :userId AND s.candidate IS NULL AND s.status = com.ajith.codejudge.submission.entity.SubmissionStatus.ACCEPTED")
     long countSolvedQuestions(@org.springframework.data.repository.query.Param("userId") Long userId);

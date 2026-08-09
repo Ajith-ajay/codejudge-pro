@@ -5,6 +5,7 @@ import com.ajith.codejudge.common.pagination.PageResponseDto;
 import com.ajith.codejudge.question.dto.request.CodingQuestionRequest;
 import com.ajith.codejudge.question.dto.request.LanguageRequest;
 import com.ajith.codejudge.question.dto.request.McqQuestionRequest;
+import com.ajith.codejudge.question.dto.request.QuestionSkillRequest;
 import com.ajith.codejudge.question.dto.response.CodingQuestionResponse;
 import com.ajith.codejudge.question.dto.response.LanguageResponse;
 import com.ajith.codejudge.question.dto.response.McqQuestionResponse;
@@ -33,4 +34,6 @@ public interface QuestionService {
     CodingQuestionResponse updateCodingQuestion(Long id, CodingQuestionRequest request);
 
     void deleteQuestion(Long id);
+
+    void assignSkills(Long questionId, QuestionSkillRequest request);
 }

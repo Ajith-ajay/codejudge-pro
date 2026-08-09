@@ -1,5 +1,17 @@
 package com.ajith.codejudge.question.service.impl;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.ajith.codejudge.common.pagination.PageRequestDto;
 import com.ajith.codejudge.common.pagination.PageResponseDto;
 import com.ajith.codejudge.exception.ConflictException;
@@ -7,6 +19,7 @@ import com.ajith.codejudge.exception.ResourceNotFoundException;
 import com.ajith.codejudge.question.dto.request.CodingQuestionRequest;
 import com.ajith.codejudge.question.dto.request.LanguageRequest;
 import com.ajith.codejudge.question.dto.request.McqQuestionRequest;
+import com.ajith.codejudge.question.dto.request.QuestionSkillRequest;
 import com.ajith.codejudge.question.dto.response.CodingQuestionResponse;
 import com.ajith.codejudge.question.dto.response.LanguageResponse;
 import com.ajith.codejudge.question.dto.response.McqQuestionResponse;
@@ -24,19 +37,11 @@ import com.ajith.codejudge.question.repository.LanguageRepository;
 import com.ajith.codejudge.question.repository.McqQuestionRepository;
 import com.ajith.codejudge.question.repository.QuestionRepository;
 import com.ajith.codejudge.question.service.interfaces.QuestionService;
+import com.ajith.codejudge.skill.entity.Skill;
+import com.ajith.codejudge.skill.repository.SkillRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -47,10 +52,26 @@ public class QuestionServiceImpl implements QuestionService {
     private final McqQuestionRepository mcqQuestionRepository;
     private final CodingQuestionRepository codingQuestionRepository;
     private final LanguageRepository languageRepository;
+    private final SkillRepository skillRepository;
 
     private final QuestionMapper questionMapper;
     private final LanguageMapper languageMapper;
     private final TestCaseMapper testCaseMapper;
+
+    @Override
+    @Transactional
+    public void assignSkills(Long questionId, QuestionSkillRequest request) {
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Question not found with id: " + questionId));
+
+        List<Skill> skills = skillRepository.findAllById(request.getSkillIds());
+        if (skills.size() != request.getSkillIds().size() || skills.stream().anyMatch(skill -> !skill.isActive())) {
+            throw new ResourceNotFoundException("One or more skills not found or inactive");
+        }
+
+        question.setSkills(new HashSet<>(skills));
+        questionRepository.save(question);
+    }
 
     @Override
     @Transactional
@@ -128,14 +149,14 @@ public class QuestionServiceImpl implements QuestionService {
     @Transactional(readOnly = true)
     public PageResponseDto<QuestionResponse> getAllQuestions(PageRequestDto pageRequest) {
         Pageable pageable = pageRequest.toPageable();
-        
+
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         boolean isCandidate = auth != null && auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_CANDIDATE"));
-        boolean isAdmin = auth != null && auth.getAuthorities().stream().anyMatch(a ->
-                a.getAuthority().equals("ROLE_ADMIN") ||
-                a.getAuthority().equals("ROLE_SUPER_ADMIN") ||
-                a.getAuthority().equals("ROLE_EXAM_SETTER")
+        boolean isAdmin = auth != null && auth.getAuthorities().stream().anyMatch(a
+                -> a.getAuthority().equals("ROLE_ADMIN")
+                || a.getAuthority().equals("ROLE_SUPER_ADMIN")
+                || a.getAuthority().equals("ROLE_EXAM_SETTER")
         );
 
         Page<Question> questions;
@@ -145,21 +166,23 @@ public class QuestionServiceImpl implements QuestionService {
         } else {
             questions = questionRepository.findAll(pageable);
         }
-        
+
         Page<QuestionResponse> responsePage = questions.map(q -> cleanseQuestionResponse(questionMapper.toResponse(q)));
         return PageResponseDto.fromPage(responsePage);
     }
 
     private QuestionResponse cleanseQuestionResponse(QuestionResponse response) {
-        if (response == null) return null;
+        if (response == null) {
+            return null;
+        }
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         boolean isCandidate = auth != null && auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_CANDIDATE"));
-        boolean isAdmin = auth != null && auth.getAuthorities().stream().anyMatch(a ->
-                a.getAuthority().equals("ROLE_ADMIN") ||
-                a.getAuthority().equals("ROLE_SUPER_ADMIN") ||
-                a.getAuthority().equals("ROLE_EXAM_SETTER")
+        boolean isAdmin = auth != null && auth.getAuthorities().stream().anyMatch(a
+                -> a.getAuthority().equals("ROLE_ADMIN")
+                || a.getAuthority().equals("ROLE_SUPER_ADMIN")
+                || a.getAuthority().equals("ROLE_EXAM_SETTER")
         );
 
         if (isCandidate && !isAdmin) {

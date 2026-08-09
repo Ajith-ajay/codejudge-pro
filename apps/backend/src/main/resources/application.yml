@@ -1,8 +1,10 @@
 spring:
+  config:
+    import: optional:file:../../.env[.properties]
   application:
     name: codejudge
   profiles:
-    active: dev
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   jpa:
     open-in-view: false
     hibernate:
@@ -26,8 +28,23 @@ management:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:407f3406a12d1b7d59828d17b2b73fb4b3e8316c0cb9bfcd9fcf0113c22b1016}
+    secret: ${JWT_SECRET}
     expiration-ms: 900000 # 15 minutes (900000 ms)
     refresh-expiration-ms: 604800000 # 7 days (604800000 ms)
   frontend:
-    url: ${FRONTEND_URL:http://localhost:3000}
+    url: ${FRONTEND_URL}
+  ai:
+    # Provider-agnostic AI configuration.
+    #
+    # Any OpenAI-compatible provider can be used by changing only these values.
+    # Examples: openai, ollama, groq, openrouter, lmstudio, vllm, together, custom.
+    provider: ${AI_PROVIDER:openai}
+    protocol: ${AI_PROTOCOL:OPENAI_CHAT}
+    api-key: ${AI_API_KEY:${OPENAI_API_KEY:}}
+    base-url: ${AI_BASE_URL:https://api.openai.com/v1}
+    model: ${AI_MODEL:gpt-5}
+    timeout-seconds: ${AI_TIMEOUT_SECONDS:90}
+    connect-timeout-seconds: ${AI_CONNECT_TIMEOUT_SECONDS:15}
+    structured-output: ${AI_STRUCTURED_OUTPUT:true}
+    output-mode: ${AI_OUTPUT_MODE:JSON_SCHEMA}
+    headers: {}

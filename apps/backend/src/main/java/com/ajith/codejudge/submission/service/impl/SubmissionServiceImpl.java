@@ -29,6 +29,7 @@ import com.ajith.codejudge.submission.repository.SubmissionRepository;
 import com.ajith.codejudge.submission.repository.SubmissionTestCaseRepository;
 import com.ajith.codejudge.submission.service.interfaces.SubmissionService;
 import com.ajith.codejudge.exam.service.interfaces.LeaderboardService;
+import com.ajith.codejudge.learning.service.SkillProgressService;
 import com.ajith.codejudge.user.entity.User;
 import com.ajith.codejudge.user.repository.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -66,6 +67,7 @@ public class SubmissionServiceImpl implements SubmissionService {
     private final DockerSandboxExecutor dockerSandboxExecutor;
     private final LeaderboardService leaderboardService;
     private final UserRepository userRepository;
+    private final SkillProgressService skillProgressService;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Override
@@ -107,6 +109,7 @@ public class SubmissionServiceImpl implements SubmissionService {
         }
 
         submission = submissionRepository.save(submission);
+        skillProgressService.updateFromSubmission(submission);
         log.info("Submission {} graded with final status: {} and score: {}", submission.getId(), submission.getStatus(), submission.getScore());
 
         if (candidate != null) {

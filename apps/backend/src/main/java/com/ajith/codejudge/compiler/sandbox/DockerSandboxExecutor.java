@@ -1,9 +1,5 @@
 package com.ajith.codejudge.compiler.sandbox;
 
-import com.ajith.codejudge.submission.entity.SubmissionStatus;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -17,6 +13,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+
+import org.springframework.stereotype.Component;
+
+import com.ajith.codejudge.submission.entity.SubmissionStatus;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
@@ -32,7 +34,7 @@ public class DockerSandboxExecutor {
         String containerName = "codejudge_run_" + UUID.randomUUID().toString().replace("-", "");
         Path tempDir = null;
         Process process = null;
-        
+
         try {
             // 1. Create temp directory
             Path tempParent = Path.of("temp");
@@ -51,6 +53,10 @@ public class DockerSandboxExecutor {
             cmdArgs.add("--rm");
             cmdArgs.add("-i");
             cmdArgs.add("--name=" + containerName);
+            cmdArgs.add("--network=none");
+            cmdArgs.add("--pids-limit=64");
+            cmdArgs.add("--cap-drop=ALL");
+            cmdArgs.add("--security-opt=no-new-privileges:true");
             cmdArgs.add("--memory=" + memoryLimitMb + "m");
             cmdArgs.add("--cpus=1.0");
             cmdArgs.add("-v");
@@ -62,7 +68,7 @@ public class DockerSandboxExecutor {
                 sourceFileName = "Solution.java";
                 dockerImage = "eclipse-temurin:21-jdk-alpine";
                 Files.writeString(tempDir.resolve(sourceFileName), sourceCode, StandardCharsets.UTF_8);
-                
+
                 cmdArgs.add(dockerImage);
                 cmdArgs.add("sh");
                 cmdArgs.add("-c");
@@ -71,7 +77,7 @@ public class DockerSandboxExecutor {
                 sourceFileName = "solution.cpp";
                 dockerImage = "gcc:13-bookworm";
                 Files.writeString(tempDir.resolve(sourceFileName), sourceCode, StandardCharsets.UTF_8);
-                
+
                 cmdArgs.add(dockerImage);
                 cmdArgs.add("sh");
                 cmdArgs.add("-c");
@@ -80,7 +86,7 @@ public class DockerSandboxExecutor {
                 sourceFileName = "solution.py";
                 dockerImage = "python:3.11-slim";
                 Files.writeString(tempDir.resolve(sourceFileName), sourceCode, StandardCharsets.UTF_8);
-                
+
                 cmdArgs.add(dockerImage);
                 cmdArgs.add("python");
                 cmdArgs.add("solution.py");
@@ -102,7 +108,22 @@ public class DockerSandboxExecutor {
             }
 
             // 5. Wait for the process to finish execution with time limit
-            boolean finished = process.waitFor(timeLimitMs + 500, TimeUnit.MILLISECONDS);
+            long sandboxTimeoutMs = Math.max(
+                    (long) timeLimitMs + 5000L,
+                    10000L
+            );
+
+            log.debug(
+                    "Executing {} with timeLimitMs={} and sandboxTimeoutMs={}",
+                    containerName,
+                    timeLimitMs,
+                    sandboxTimeoutMs
+            );
+
+            boolean finished = process.waitFor(
+                    sandboxTimeoutMs,
+                    TimeUnit.MILLISECONDS
+            );
             long durationMs = (System.nanoTime() - startTime) / 1_000_000;
 
             if (!finished) {
@@ -199,11 +220,12 @@ public class DockerSandboxExecutor {
         try {
             try (var files = Files.walk(dir)) {
                 files.sorted((a, b) -> b.compareTo(a)) // delete children first
-                     .forEach(p -> {
-                         try {
-                             Files.delete(p);
-                         } catch (IOException ignored) {}
-                     });
+                        .forEach(p -> {
+                            try {
+                                Files.delete(p);
+                            } catch (IOException ignored) {
+                            }
+                        });
             }
         } catch (IOException e) {
             log.error("Failed to cleanup sandbox temp directory: {}", dir, e);
