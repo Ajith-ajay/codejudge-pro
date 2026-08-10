@@ -20,6 +20,7 @@ import com.ajith.codejudge.common.response.ApiResponse;
 import com.ajith.codejudge.question.dto.request.CodingQuestionRequest;
 import com.ajith.codejudge.question.dto.request.LanguageRequest;
 import com.ajith.codejudge.question.dto.request.McqQuestionRequest;
+import com.ajith.codejudge.question.dto.request.QuestionSkillRequest;
 import com.ajith.codejudge.question.dto.response.CodingQuestionResponse;
 import com.ajith.codejudge.question.dto.response.LanguageResponse;
 import com.ajith.codejudge.question.dto.response.McqQuestionResponse;
@@ -103,6 +104,16 @@ public class QuestionController {
     public ResponseEntity<ApiResponse<CodingQuestionResponse>> updateCoding(@PathVariable Long id, @Valid @RequestBody CodingQuestionRequest request) {
         CodingQuestionResponse response = questionService.updateCodingQuestion(id, request);
         return ResponseEntity.ok(ApiResponse.success(response, "Coding Question updated successfully"));
+    }
+
+    @PutMapping("/{id}/skills")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'EXAM_SETTER')")
+    @Operation(summary = "Assign learning skills to a question")
+    public ResponseEntity<ApiResponse<Void>> assignSkills(
+            @PathVariable Long id,
+            @Valid @RequestBody QuestionSkillRequest request) {
+        questionService.assignSkills(id, request);
+        return ResponseEntity.ok(ApiResponse.success("Question skills updated successfully"));
     }
 
     @DeleteMapping("/{id}")
