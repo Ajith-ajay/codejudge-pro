@@ -44,10 +44,19 @@ public class ProviderAgnosticLlmClient implements LlmClient {
 
     @Override
     public String generateProblem(String prompt) {
+        return generateStructured(prompt, CodingProblemSchema.buildSchema(objectMapper), "coding_problem", "problem");
+    }
+
+    @Override
+    public String generateMcq(String prompt) {
+        return generateStructured(prompt, McqQuestionSchema.buildSchema(objectMapper), "mcq_question", "MCQ");
+    }
+
+    private String generateStructured(String prompt, ObjectNode schema, String schemaName, String responseType) {
         validateConfiguration();
 
         try {
-            ObjectNode request = buildRequest(prompt);
+            ObjectNode request = buildRequest(prompt, schema, schemaName);
 
             HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint()))
@@ -89,10 +98,17 @@ public class ProviderAgnosticLlmClient implements LlmClient {
             JsonNode root = objectMapper.readTree(response.body());
             String output = extractText(root);
 
+            log.info(
+                    "LLM raw generated output: provider={}, model={}, output={}",
+                    properties.getProvider(),
+                    properties.getModel(),
+                    output
+            );
+
             if (output == null || output.isBlank()) {
                 throw new AiServiceException(
                         "LLM provider '" + properties.getProvider()
-                        + "' returned an empty problem response"
+                        + "' returned an empty " + responseType + " response"
                 );
             }
 
@@ -139,14 +155,14 @@ public class ProviderAgnosticLlmClient implements LlmClient {
         }
     }
 
-    private ObjectNode buildRequest(String prompt) {
+    private ObjectNode buildRequest(String prompt, ObjectNode schema, String schemaName) {
         if (properties.getProtocol() == AiProperties.Protocol.OPENAI_RESPONSES) {
-            return buildResponsesRequest(prompt);
+            return buildResponsesRequest(prompt, schema, schemaName);
         }
-        return buildChatRequest(prompt);
+        return buildChatRequest(prompt, schema, schemaName);
     }
 
-    private ObjectNode buildChatRequest(String prompt) {
+    private ObjectNode buildChatRequest(String prompt, ObjectNode schema, String schemaName) {
         ObjectNode request = objectMapper.createObjectNode();
         request.put("model", properties.getModel());
 
@@ -156,7 +172,7 @@ public class ProviderAgnosticLlmClient implements LlmClient {
         message.put("content", prompt);
 
         if (properties.isStructuredOutput()) {
-            addJsonSchemaResponseFormat(request);
+            addJsonSchemaResponseFormat(request, schema, schemaName);
         } else {
             switch (properties.getOutputMode()) {
                 case JSON_OBJECT -> {
@@ -173,7 +189,7 @@ public class ProviderAgnosticLlmClient implements LlmClient {
         return request;
     }
 
-    private ObjectNode buildResponsesRequest(String prompt) {
+    private ObjectNode buildResponsesRequest(String prompt, ObjectNode schema, String schemaName) {
         ObjectNode request = objectMapper.createObjectNode();
         request.put("model", properties.getModel());
         request.put("store", false);
@@ -183,27 +199,27 @@ public class ProviderAgnosticLlmClient implements LlmClient {
             ObjectNode text = request.putObject("text");
             ObjectNode format = text.putObject("format");
             format.put("type", "json_schema");
-            format.put("name", "coding_problem");
+            format.put("name", schemaName);
             format.put("strict", true);
             format.set(
                     "schema",
-                    CodingProblemSchema.buildSchema(objectMapper)
+                    schema
             );
         }
 
         return request;
     }
 
-    private void addJsonSchemaResponseFormat(ObjectNode request) {
+    private void addJsonSchemaResponseFormat(ObjectNode request, ObjectNode schema, String schemaName) {
         ObjectNode responseFormat = request.putObject("response_format");
         responseFormat.put("type", "json_schema");
 
         ObjectNode jsonSchema = responseFormat.putObject("json_schema");
-        jsonSchema.put("name", "coding_problem");
+        jsonSchema.put("name", schemaName);
         jsonSchema.put("strict", true);
         jsonSchema.set(
                 "schema",
-                CodingProblemSchema.buildSchema(objectMapper)
+                schema
         );
     }
 

@@ -1,7 +1,13 @@
 package com.ajith.codejudge.question.entity;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.PrimaryKeyJoinColumn;
 import jakarta.persistence.Table;
@@ -10,10 +16,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
-
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
 
 @Getter
 @Setter
@@ -25,7 +27,7 @@ import java.util.List;
 @PrimaryKeyJoinColumn(name = "id")
 public class McqQuestion extends Question {
 
-    @Convert(converter = McqOptionConverter.class)
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     @lombok.Builder.Default
     private List<McqOption> options = new ArrayList<>();
@@ -41,4 +43,7 @@ public class McqQuestion extends Question {
 
     @Column(name = "randomize_options", nullable = false)
     private boolean randomizeOptions;
+
+    @Column(columnDefinition = "TEXT")
+    private String explanation;
 }

@@ -190,6 +190,7 @@ public class QuestionServiceImpl implements QuestionService {
                 if (mcqResponse.getOptions() != null) {
                     mcqResponse.getOptions().forEach(opt -> opt.setCorrect(false));
                 }
+                mcqResponse.setExplanation(null);
             } else if (response instanceof CodingQuestionResponse codingResponse) {
                 if (codingResponse.getTestCases() != null) {
                     codingResponse.getTestCases().removeIf(com.ajith.codejudge.question.dto.response.TestCaseResponse::isHidden);
