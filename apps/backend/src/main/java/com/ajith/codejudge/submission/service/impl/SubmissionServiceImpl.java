@@ -29,6 +29,11 @@ import com.ajith.codejudge.submission.repository.SubmissionRepository;
 import com.ajith.codejudge.submission.repository.SubmissionTestCaseRepository;
 import com.ajith.codejudge.submission.service.interfaces.SubmissionService;
 import com.ajith.codejudge.exam.service.interfaces.LeaderboardService;
+import com.ajith.codejudge.learning.entity.AssessmentQuestion;
+import com.ajith.codejudge.learning.entity.LearningAssessment;
+import com.ajith.codejudge.learning.entity.LearningAssessmentStatus;
+import com.ajith.codejudge.learning.repository.AssessmentQuestionRepository;
+import com.ajith.codejudge.learning.repository.LearningAssessmentRepository;
 import com.ajith.codejudge.learning.service.SkillProgressService;
 import com.ajith.codejudge.user.entity.User;
 import com.ajith.codejudge.user.repository.UserRepository;
@@ -68,6 +73,8 @@ public class SubmissionServiceImpl implements SubmissionService {
     private final LeaderboardService leaderboardService;
     private final UserRepository userRepository;
     private final SkillProgressService skillProgressService;
+    private final LearningAssessmentRepository learningAssessmentRepository;
+    private final AssessmentQuestionRepository assessmentQuestionRepository;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Override
@@ -81,6 +88,10 @@ public class SubmissionServiceImpl implements SubmissionService {
 
         ExamCandidate candidate = null;
         if (request.getCandidateId() != null) {
+            if (request.getAssessmentId() != null) {
+                throw new BadRequestException("A submission cannot belong to an exam and a learning assessment");
+            }
+
             candidate = examCandidateRepository.findById(request.getCandidateId())
                     .orElseThrow(() -> new ResourceNotFoundException("Candidate enrollment not found"));
             if (candidate.getStatus() != CandidateStatus.STARTED) {
@@ -91,10 +102,31 @@ public class SubmissionServiceImpl implements SubmissionService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
+        LearningAssessment assessment = null;
+        if (request.getAssessmentId() != null) {
+            assessment = learningAssessmentRepository.findByIdAndUserId(request.getAssessmentId(), userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Learning assessment not found"));
+
+            if (assessment.getStatus() == LearningAssessmentStatus.COMPLETED) {
+                throw new BadRequestException("Learning assessment is already completed");
+            }
+
+            if (!assessmentQuestionRepository.existsByAssessmentIdAndQuestionId(
+                    assessment.getId(), question.getId())) {
+                throw new BadRequestException("Question does not belong to the learning assessment");
+            }
+
+            if (assessment.getStatus() == LearningAssessmentStatus.GENERATED) {
+                assessment.setStatus(LearningAssessmentStatus.IN_PROGRESS);
+                learningAssessmentRepository.save(assessment);
+            }
+        }
+
         // Initialize submission record as RUNNING
         Submission submission = Submission.builder()
                 .user(user)
                 .candidate(candidate)
+                .assessment(assessment)
                 .question(question)
                 .language(language)
                 .sourceCode(request.getSourceCode())

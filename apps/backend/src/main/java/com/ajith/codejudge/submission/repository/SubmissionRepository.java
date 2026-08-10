@@ -18,6 +18,8 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
 
     List<Submission> findByUserId(Long userId);
 
+    List<Submission> findByAssessmentIdAndUserId(Long assessmentId, Long userId);
+
     List<Submission> findByUserIdAndCandidateIsNullAndQuestionIdInAndCreatedAtAfter(
             Long userId, List<Long> questionIds, LocalDateTime createdAt);
 

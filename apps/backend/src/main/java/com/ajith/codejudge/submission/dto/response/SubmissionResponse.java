@@ -18,6 +18,7 @@ import java.util.List;
 public class SubmissionResponse {
     private Long id;
     private Long candidateId;
+    private Long assessmentId;
     private Long questionId;
     private String questionTitle;
     private String languageCode;

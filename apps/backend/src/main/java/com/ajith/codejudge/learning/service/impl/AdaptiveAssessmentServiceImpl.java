@@ -52,10 +52,20 @@ public class AdaptiveAssessmentServiceImpl implements AdaptiveAssessmentService 
         Difficulty targetDifficulty = chooseDifficulty(mastery);
 
         List<Question> selected = new ArrayList<>();
-        selected.addAll(selectQuestions(userId, skill.getId(), QuestionType.MCQ,
-                targetDifficulty, request.getMcqCount()));
-        selected.addAll(selectQuestions(userId, skill.getId(), QuestionType.CODING,
-                targetDifficulty, request.getCodingCount()));
+        selected.addAll(selectAdaptiveQuestions(
+                userId,
+                skill.getId(),
+                QuestionType.MCQ,
+                targetDifficulty,
+                request.getMcqCount()
+        ));
+        selected.addAll(selectAdaptiveQuestions(
+                userId,
+                skill.getId(),
+                QuestionType.CODING,
+                targetDifficulty,
+                request.getCodingCount()
+        ));
 
         int expected = request.getMcqCount() + request.getCodingCount();
         if (selected.size() < expected) {
@@ -100,6 +110,23 @@ public class AdaptiveAssessmentServiceImpl implements AdaptiveAssessmentService 
 
     @Override
     @Transactional
+    public LearningAssessmentResponse start(Long userId, Long assessmentId) {
+        LearningAssessment assessment = getOwned(userId, assessmentId);
+
+        if (assessment.getStatus() == LearningAssessmentStatus.COMPLETED) {
+            throw new BadRequestException("Completed assessment cannot be started");
+        }
+
+        if (assessment.getQuestions().isEmpty()) {
+            throw new BadRequestException("Assessment has no questions");
+        }
+
+        assessment.setStatus(LearningAssessmentStatus.IN_PROGRESS);
+        return toResponse(assessmentRepository.save(assessment));
+    }
+
+    @Override
+    @Transactional
     public LearningAssessmentResponse complete(Long userId, Long assessmentId) {
         LearningAssessment assessment = getOwned(userId, assessmentId);
 
@@ -115,11 +142,13 @@ public class AdaptiveAssessmentServiceImpl implements AdaptiveAssessmentService 
             throw new BadRequestException("Assessment has no questions");
         }
 
-        var submissions = submissionRepository.findByUserIdAndCandidateIsNullAndQuestionIdInAndCreatedAtAfter(
-                userId, questionIds, assessment.getCreatedAt());
+        List<com.ajith.codejudge.submission.entity.Submission> submissions =
+                submissionRepository.findByAssessmentIdAndUserId(assessmentId, userId);
 
         Map<Long, Integer> bestScores = submissions.stream()
-                .filter(s -> s.getStatus() != SubmissionStatus.PENDING && s.getStatus() != SubmissionStatus.RUNNING)
+                .filter(s -> s.getCandidate() == null)
+                .filter(s -> s.getStatus() != SubmissionStatus.PENDING
+                        && s.getStatus() != SubmissionStatus.RUNNING)
                 .collect(Collectors.toMap(
                         s -> s.getQuestion().getId(),
                         s -> s.getScore(),
@@ -163,13 +192,65 @@ public class AdaptiveAssessmentServiceImpl implements AdaptiveAssessmentService 
         return Difficulty.HARD;
     }
 
-    private List<Question> selectQuestions(Long userId, Long skillId, QuestionType type,
-                                           Difficulty difficulty, int count) {
-        List<Question> candidates = questionRepository.findAdaptiveCandidates(
-                skillId, type, difficulty, userId);
+    private List<Question> selectAdaptiveQuestions(
+            Long userId,
+            Long skillId,
+            QuestionType type,
+            Difficulty targetDifficulty,
+            int count) {
 
-        Collections.shuffle(candidates);
-        return candidates.stream().limit(count).toList();
+        if (count <= 0) {
+            return List.of();
+        }
+
+        List<Difficulty> difficultyOrder = difficultyOrder(targetDifficulty);
+        List<Question> selected = new ArrayList<>();
+
+        for (Difficulty difficulty : difficultyOrder) {
+            if (selected.size() >= count) {
+                break;
+            }
+
+            List<Question> candidates = questionRepository.findAdaptiveCandidates(
+                    skillId,
+                    type,
+                    difficulty,
+                    userId
+            );
+
+            Collections.shuffle(candidates);
+
+            Set<Long> selectedIds = selected.stream()
+                    .map(Question::getId)
+                    .collect(Collectors.toSet());
+
+            candidates.stream()
+                    .filter(question -> !selectedIds.contains(question.getId()))
+                    .limit(count - selected.size())
+                    .forEach(selected::add);
+        }
+
+        return selected;
+    }
+
+    private List<Difficulty> difficultyOrder(Difficulty target) {
+        return switch (target) {
+            case EASY -> List.of(
+                    Difficulty.EASY,
+                    Difficulty.MEDIUM,
+                    Difficulty.HARD
+            );
+            case MEDIUM -> List.of(
+                    Difficulty.MEDIUM,
+                    Difficulty.EASY,
+                    Difficulty.HARD
+            );
+            case HARD -> List.of(
+                    Difficulty.HARD,
+                    Difficulty.MEDIUM,
+                    Difficulty.EASY
+            );
+        };
     }
 
     private LearningAssessment getOwned(Long userId, Long assessmentId) {

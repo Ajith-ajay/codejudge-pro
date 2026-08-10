@@ -46,6 +46,17 @@ public class AdaptiveAssessmentController {
                 "Assessment retrieved successfully"));
     }
 
+    @PostMapping("/{id}/start")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'EXAM_SETTER', 'ADMIN', 'SUPER_ADMIN')")
+    @Operation(summary = "Start an adaptive learning assessment")
+    public ResponseEntity<ApiResponse<LearningAssessmentResponse>> start(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(
+                assessmentService.start(userDetails.getId(), id),
+                "Adaptive assessment started successfully"));
+    }
+
     @PostMapping("/{id}/complete")
     @PreAuthorize("hasAnyRole('CANDIDATE', 'EXAM_SETTER', 'ADMIN', 'SUPER_ADMIN')")
     @Operation(summary = "Complete an adaptive assessment")
