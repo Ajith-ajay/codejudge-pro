@@ -1,9 +1,6 @@
 package com.ajith.codejudge.question.entity;
 
-import java.util.Objects;
-
 import com.ajith.codejudge.common.entity.BaseEntity;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -45,12 +42,6 @@ public abstract class Question extends BaseEntity {
     @Column(nullable = false, length = 255)
     private String title;
 
-    @Column(nullable = false, unique = true)
-    private String slug;
-
-    @Column(nullable = false)
-    private boolean published;
-
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
@@ -76,12 +67,8 @@ public abstract class Question extends BaseEntity {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
         Question question = (Question) o;
         return Objects.equals(id, question.id);
     }
