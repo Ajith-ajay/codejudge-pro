@@ -5,4 +5,6 @@ public interface LlmClient {
     String generateProblem(String prompt);
 
     String generateMcq(String prompt);
+
+    String generateRoadmap(String prompt);
 }
