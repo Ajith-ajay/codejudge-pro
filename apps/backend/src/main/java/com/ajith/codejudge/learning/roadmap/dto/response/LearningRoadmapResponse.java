@@ -4,6 +4,7 @@ import com.ajith.codejudge.learning.roadmap.entity.LearningRoadmapStatus;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -20,6 +21,7 @@ public class LearningRoadmapResponse {
     private int dailyMinutes;
     private LearningRoadmapStatus status;
     private int version;
+    private LocalDate startDate;
     private LocalDateTime createdAt;
     private List<RoadmapDayResponse> days;
 }
