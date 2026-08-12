@@ -57,6 +57,9 @@ public class LearningRoadmap {
     @Builder.Default
     private int version = 1;
 
+    @Column(name = "start_date", nullable = false)
+    private java.time.LocalDate startDate;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "generated_payload", nullable = false, columnDefinition = "jsonb")
     private String generatedPayload;

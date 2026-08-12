@@ -57,6 +57,11 @@ public class ProviderAgnosticLlmClient implements LlmClient {
         return generateStructured(prompt, LearningRoadmapSchema.buildSchema(objectMapper), "learning_roadmap", "roadmap");
     }
 
+    @Override
+    public String generateTutor(String prompt) {
+        return generateStructured(prompt, TutorResponseSchema.buildSchema(objectMapper), "tutor_response", "tutor");
+    }
+
     private String generateStructured(String prompt, ObjectNode schema, String schemaName, String responseType) {
         validateConfiguration();
 

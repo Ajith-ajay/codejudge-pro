@@ -13,6 +13,7 @@ import com.ajith.codejudge.question.entity.Language;
 import com.ajith.codejudge.question.entity.Question;
 import com.ajith.codejudge.user.entity.User;
 import com.ajith.codejudge.learning.entity.LearningAssessment;
+import com.ajith.codejudge.learning.session.entity.LearningSessionActivity;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -67,6 +68,10 @@ public class Submission {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assessment_id")
     private LearningAssessment assessment;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "learning_session_activity_id")
+    private LearningSessionActivity learningSessionActivity;
 
     @Column(name = "source_code", nullable = false, columnDefinition = "TEXT")
     private String sourceCode;

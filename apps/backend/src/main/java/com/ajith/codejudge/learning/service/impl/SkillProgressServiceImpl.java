@@ -27,6 +27,10 @@ public class SkillProgressServiceImpl implements SkillProgressService {
     @Override
     @Transactional
     public void updateFromSubmission(Submission submission) {
+        if (submission != null && submission.getCandidate() != null) {
+            return;
+        }
+
         if (submission == null
                 || submission.getUser() == null
                 || submission.getQuestion() == null

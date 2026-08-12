@@ -7,4 +7,6 @@ public interface LlmClient {
     String generateMcq(String prompt);
 
     String generateRoadmap(String prompt);
+
+    String generateTutor(String prompt);
 }

@@ -33,6 +33,10 @@ import com.ajith.codejudge.learning.entity.AssessmentQuestion;
 import com.ajith.codejudge.learning.entity.LearningAssessment;
 import com.ajith.codejudge.learning.entity.LearningAssessmentStatus;
 import com.ajith.codejudge.learning.repository.AssessmentQuestionRepository;
+import com.ajith.codejudge.learning.session.entity.LearningSessionActivityStatus;
+import com.ajith.codejudge.learning.session.entity.LearningSessionStatus;
+import com.ajith.codejudge.learning.session.entity.LearningSessionActivity;
+import com.ajith.codejudge.learning.session.repository.LearningSessionActivityRepository;
 import com.ajith.codejudge.learning.repository.LearningAssessmentRepository;
 import com.ajith.codejudge.learning.service.SkillProgressService;
 import com.ajith.codejudge.user.entity.User;
@@ -75,6 +79,7 @@ public class SubmissionServiceImpl implements SubmissionService {
     private final SkillProgressService skillProgressService;
     private final LearningAssessmentRepository learningAssessmentRepository;
     private final AssessmentQuestionRepository assessmentQuestionRepository;
+    private final LearningSessionActivityRepository learningSessionActivityRepository;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Override
@@ -88,8 +93,8 @@ public class SubmissionServiceImpl implements SubmissionService {
 
         ExamCandidate candidate = null;
         if (request.getCandidateId() != null) {
-            if (request.getAssessmentId() != null) {
-                throw new BadRequestException("A submission cannot belong to an exam and a learning assessment");
+            if (request.getAssessmentId() != null || request.getLearningSessionActivityId() != null) {
+                throw new BadRequestException("A submission cannot belong to an exam and a learning activity/assessment");
             }
 
             candidate = examCandidateRepository.findById(request.getCandidateId())
@@ -101,6 +106,11 @@ public class SubmissionServiceImpl implements SubmissionService {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (request.getAssessmentId() != null && request.getLearningSessionActivityId() != null) {
+            throw new BadRequestException(
+                    "A submission cannot belong to both a learning assessment and a daily learning activity");
+        }
 
         LearningAssessment assessment = null;
         if (request.getAssessmentId() != null) {
@@ -122,11 +132,39 @@ public class SubmissionServiceImpl implements SubmissionService {
             }
         }
 
+        LearningSessionActivity learningSessionActivity = null;
+        if (request.getLearningSessionActivityId() != null) {
+            learningSessionActivity = learningSessionActivityRepository
+                    .findOwned(request.getLearningSessionActivityId(), userId)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Learning session activity not found"));
+
+            if (learningSessionActivity.getSession().getStatus() == LearningSessionStatus.COMPLETED) {
+                throw new BadRequestException("Learning session is already completed");
+            }
+
+            if (learningSessionActivity.getStatus() == LearningSessionActivityStatus.COMPLETED) {
+                throw new BadRequestException("Learning activity is already completed");
+            }
+
+            if (!learningSessionActivity.getQuestions().stream()
+                    .anyMatch(q -> q.getQuestion().getId().equals(question.getId()))) {
+                throw new BadRequestException(
+                        "Question does not belong to the learning session activity");
+            }
+
+            if (learningSessionActivity.getStatus() == LearningSessionActivityStatus.NOT_STARTED) {
+                throw new BadRequestException(
+                        "Start the learning session activity before submitting");
+            }
+        }
+
         // Initialize submission record as RUNNING
         Submission submission = Submission.builder()
                 .user(user)
                 .candidate(candidate)
                 .assessment(assessment)
+                .learningSessionActivity(learningSessionActivity)
                 .question(question)
                 .language(language)
                 .sourceCode(request.getSourceCode())
