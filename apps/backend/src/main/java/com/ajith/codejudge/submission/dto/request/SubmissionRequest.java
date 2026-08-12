@@ -25,4 +25,16 @@ public class SubmissionRequest {
     private String sourceCode;
 
     private Long candidateId;
+
+    /**
+     * Optional learning assessment this submission belongs to.
+     * Must not be supplied for exam submissions.
+     */
+    private Long assessmentId;
+
+    /**
+     * Optional daily learning session activity.
+     * Must not be supplied for exam or learning-assessment submissions.
+     */
+    private Long learningSessionActivityId;
 }

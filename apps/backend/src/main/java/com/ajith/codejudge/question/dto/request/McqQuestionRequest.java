@@ -48,4 +48,6 @@ public class McqQuestionRequest {
     private boolean partialMarking;
 
     private boolean randomizeOptions;
+
+    private String explanation;
 }

@@ -29,6 +29,16 @@ import com.ajith.codejudge.submission.repository.SubmissionRepository;
 import com.ajith.codejudge.submission.repository.SubmissionTestCaseRepository;
 import com.ajith.codejudge.submission.service.interfaces.SubmissionService;
 import com.ajith.codejudge.exam.service.interfaces.LeaderboardService;
+import com.ajith.codejudge.learning.entity.AssessmentQuestion;
+import com.ajith.codejudge.learning.entity.LearningAssessment;
+import com.ajith.codejudge.learning.entity.LearningAssessmentStatus;
+import com.ajith.codejudge.learning.repository.AssessmentQuestionRepository;
+import com.ajith.codejudge.learning.session.entity.LearningSessionActivityStatus;
+import com.ajith.codejudge.learning.session.entity.LearningSessionStatus;
+import com.ajith.codejudge.learning.session.entity.LearningSessionActivity;
+import com.ajith.codejudge.learning.session.repository.LearningSessionActivityRepository;
+import com.ajith.codejudge.learning.repository.LearningAssessmentRepository;
+import com.ajith.codejudge.learning.service.SkillProgressService;
 import com.ajith.codejudge.user.entity.User;
 import com.ajith.codejudge.user.repository.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -66,6 +76,10 @@ public class SubmissionServiceImpl implements SubmissionService {
     private final DockerSandboxExecutor dockerSandboxExecutor;
     private final LeaderboardService leaderboardService;
     private final UserRepository userRepository;
+    private final SkillProgressService skillProgressService;
+    private final LearningAssessmentRepository learningAssessmentRepository;
+    private final AssessmentQuestionRepository assessmentQuestionRepository;
+    private final LearningSessionActivityRepository learningSessionActivityRepository;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Override
@@ -79,6 +93,10 @@ public class SubmissionServiceImpl implements SubmissionService {
 
         ExamCandidate candidate = null;
         if (request.getCandidateId() != null) {
+            if (request.getAssessmentId() != null || request.getLearningSessionActivityId() != null) {
+                throw new BadRequestException("A submission cannot belong to an exam and a learning activity/assessment");
+            }
+
             candidate = examCandidateRepository.findById(request.getCandidateId())
                     .orElseThrow(() -> new ResourceNotFoundException("Candidate enrollment not found"));
             if (candidate.getStatus() != CandidateStatus.STARTED) {
@@ -89,10 +107,64 @@ public class SubmissionServiceImpl implements SubmissionService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
+        if (request.getAssessmentId() != null && request.getLearningSessionActivityId() != null) {
+            throw new BadRequestException(
+                    "A submission cannot belong to both a learning assessment and a daily learning activity");
+        }
+
+        LearningAssessment assessment = null;
+        if (request.getAssessmentId() != null) {
+            assessment = learningAssessmentRepository.findByIdAndUserId(request.getAssessmentId(), userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Learning assessment not found"));
+
+            if (assessment.getStatus() == LearningAssessmentStatus.COMPLETED) {
+                throw new BadRequestException("Learning assessment is already completed");
+            }
+
+            if (!assessmentQuestionRepository.existsByAssessmentIdAndQuestionId(
+                    assessment.getId(), question.getId())) {
+                throw new BadRequestException("Question does not belong to the learning assessment");
+            }
+
+            if (assessment.getStatus() == LearningAssessmentStatus.GENERATED) {
+                assessment.setStatus(LearningAssessmentStatus.IN_PROGRESS);
+                learningAssessmentRepository.save(assessment);
+            }
+        }
+
+        LearningSessionActivity learningSessionActivity = null;
+        if (request.getLearningSessionActivityId() != null) {
+            learningSessionActivity = learningSessionActivityRepository
+                    .findOwned(request.getLearningSessionActivityId(), userId)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Learning session activity not found"));
+
+            if (learningSessionActivity.getSession().getStatus() == LearningSessionStatus.COMPLETED) {
+                throw new BadRequestException("Learning session is already completed");
+            }
+
+            if (learningSessionActivity.getStatus() == LearningSessionActivityStatus.COMPLETED) {
+                throw new BadRequestException("Learning activity is already completed");
+            }
+
+            if (!learningSessionActivity.getQuestions().stream()
+                    .anyMatch(q -> q.getQuestion().getId().equals(question.getId()))) {
+                throw new BadRequestException(
+                        "Question does not belong to the learning session activity");
+            }
+
+            if (learningSessionActivity.getStatus() == LearningSessionActivityStatus.NOT_STARTED) {
+                throw new BadRequestException(
+                        "Start the learning session activity before submitting");
+            }
+        }
+
         // Initialize submission record as RUNNING
         Submission submission = Submission.builder()
                 .user(user)
                 .candidate(candidate)
+                .assessment(assessment)
+                .learningSessionActivity(learningSessionActivity)
                 .question(question)
                 .language(language)
                 .sourceCode(request.getSourceCode())
@@ -107,6 +179,7 @@ public class SubmissionServiceImpl implements SubmissionService {
         }
 
         submission = submissionRepository.save(submission);
+        skillProgressService.updateFromSubmission(submission);
         log.info("Submission {} graded with final status: {} and score: {}", submission.getId(), submission.getStatus(), submission.getScore());
 
         if (candidate != null) {

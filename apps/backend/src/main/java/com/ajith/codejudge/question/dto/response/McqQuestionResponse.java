@@ -21,4 +21,5 @@ public class McqQuestionResponse extends QuestionResponse {
     private BigDecimal negativeMarking;
     private boolean partialMarking;
     private boolean randomizeOptions;
+    private String explanation;
 }

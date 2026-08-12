@@ -11,6 +11,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
 import jakarta.persistence.Table;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.JoinColumn;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -18,6 +22,8 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 import java.util.Objects;
+import java.util.HashSet;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -49,6 +55,15 @@ public abstract class Question extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private QuestionType type;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "question_skills",
+            joinColumns = @JoinColumn(name = "question_id"),
+            inverseJoinColumns = @JoinColumn(name = "skill_id")
+    )
+    @lombok.Builder.Default
+    private Set<com.ajith.codejudge.skill.entity.Skill> skills = new HashSet<>();
 
     @Override
     public boolean equals(Object o) {
